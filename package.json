@@ -43,7 +43,8 @@
     "ts-node": "^3.3.0",
     "tui-jsdoc-template": "^1.2.2",
     "typedoc": "^0.9.0",
-    "typescript": "^2.6.1"
+    "typescript": "^2.6.1",
+    "querycraft": "^0.0.8"
   },
   "nyc": {
     "extension": [
