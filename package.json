@@ -11,9 +11,7 @@
   "scripts": {
     "prebuild": "npm run test",
     "build": "tsc",
-    "postbuild": "npm run docs",
     "start": "mocha --watch lib/*.* --watch-extensions ts",
-    "predocs": "rm -rf docs/",
     "serve:cov": "http-server -p 8001 coverage/",
     "test": "nyc mocha --reporter mocha-junit-reporter",
     "test:cov": "nyc npm test",
