@@ -65,7 +65,6 @@
     "all": true
   },
   "dependencies": {
-    "querycraft": "0.0.16",
     "ramda": "^0.25.0"
   },
   "peerDependencies": {
