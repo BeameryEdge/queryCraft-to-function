@@ -19,14 +19,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/BeameryHQ/QueryCraft.git"
+    "url": "git+https://github.com/BeameryHQ/QueryCraft-To-Function.git"
   },
   "author": "Dayo Adeyemi",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/BeameryHQ/QueryCraft/issues"
+    "url": "https://github.com/BeameryHQ/QueryCraft-To-Function/issues"
   },
-  "homepage": "https://github.com/BeameryHQ/QueryCraft#readme",
+  "homepage": "https://github.com/BeameryHQ/QueryCraft-To-Function#readme",
   "devDependencies": {
     "@types/chai": "^4.0.4",
     "@types/mocha": "^2.2.44",
