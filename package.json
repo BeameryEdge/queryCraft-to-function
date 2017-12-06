@@ -44,7 +44,7 @@
     "tui-jsdoc-template": "^1.2.2",
     "typedoc": "^0.9.0",
     "typescript": "^2.6.1",
-    "querycraft": "^0.0.8"
+    "querycraft": "^0.0.16"
   },
   "nyc": {
     "extension": [
@@ -69,6 +69,6 @@
     "ramda": "^0.25.0"
   },
   "peerDependencies": {
-    "querycraft": "^0.0.8"
+    "querycraft": "^0.0.16"
   }
 }
