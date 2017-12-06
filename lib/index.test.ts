@@ -173,6 +173,11 @@ const conditionCases: ConditionCase[] = [
             filter: new FilterBuilder()
             .where('date', lt({ daysAgo: 2 })),
             expected: testObjects.filter(({_id}) => (_id-1)/23>2 && _id%23===1)
+        }, {
+            scenario: 'filter lt null',
+            filter: new FilterBuilder()
+            .where('num', lt(null)),
+            expected: []
         }]
     }, {
         conditionName: 'gt',
@@ -192,10 +197,15 @@ const conditionCases: ConditionCase[] = [
             .where('date', gt(now)),
             expected: testObjects.filter(({_id}) => _id%23===1 &&_id<1)
         }, {
-            scenario: 'filter lt days ago',
+            scenario: 'filter gt days ago',
             filter: new FilterBuilder()
             .where('date', gt({ daysAgo: 2 })),
             expected: testObjects.filter(({_id}) => _id%23===1 && (_id-1)/23<2)
+        }, {
+            scenario: 'filter gt null',
+            filter: new FilterBuilder()
+            .where('num', gt(null)),
+            expected: testObjects.filter(({_id}) => _id%5>0)
         }]
     }, {
         conditionName: 'lte',
@@ -242,6 +252,11 @@ const conditionCases: ConditionCase[] = [
             filter: new FilterBuilder()
             .where('date', gte({ daysAgo: 2 })),
             expected: testObjects.filter(({_id}) => _id%23===1 && (_id-1)/23<=2)
+        }, {
+            scenario: 'filter lte null',
+            filter: new FilterBuilder()
+            .where('num', lte(null)),
+            expected: []
         }]
     }, {
         conditionName: 'prefix',

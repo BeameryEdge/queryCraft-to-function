@@ -57,7 +57,17 @@ function check(fieldId: string, condition: Condition, obj: any) {
 }
 
 function testOrderCondition(condition: OrderCondition, testValue: Value){
-    if (typeof condition.value === 'number' || condition.value instanceof Date || typeof condition.value === 'string') {
+    if (testValue == null) {
+        if (condition.op === 'LT') return testValue != null
+        if (condition.op === 'GT') return false
+        if (condition.op === 'LTE') return true
+        if (condition.op === 'GTE') return testValue == null
+    } else if (condition.value == null) {
+        if (condition.op === 'LT') return false
+        if (condition.op === 'GT') return testValue != null
+        if (condition.op === 'LTE') return testValue == null
+        if (condition.op === 'GTE') return true
+    } else if (typeof condition.value === 'boolean' || typeof condition.value === 'number' || condition.value instanceof Date || typeof condition.value === 'string') {
         if (condition.op === 'LT') return testValue < condition.value
         if (condition.op === 'GT') return testValue > condition.value
         if (condition.op === 'LTE') return testValue <= condition.value
@@ -127,7 +137,7 @@ export default function apply<T extends { id: string }>(filter: FilterBuilder, i
         const sortVal = path<Value | Datum[]>(sortPath, datum)
         if (sortFieldSubId && sortFieldSubProp) {
             if (sortVal && Array.isArray(sortVal) && sortVal.length) {
-                return path<Value>(sortFieldSubProp.split(/\./g), sortVal.find(propEq('id', sortFieldSubId)))
+                return path<Value>(sortFieldSubProp.split(/\./g), (sortVal as Datum[]).find(propEq('id', sortFieldSubId)))
             } else {
                 return null;
             }
