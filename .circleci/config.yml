@@ -31,6 +31,9 @@ jobs:
       - run:
           name: Test
           command: npm test
+          environment:
+            MOCHA_FILE: $CIRCLE_TEST_REPORTS/junit/test-results.xml
+            DEBUG: querycraft*
       - run:
           name: Generate code coverage
           command: './node_modules/.bin/nyc report --reporter=text-lcov'
