@@ -57,12 +57,7 @@ function check(fieldId: string, condition: Condition, obj: any) {
 }
 
 function testOrderCondition(condition: OrderCondition, testValue: Value){
-    if (testValue == null) {
-        if (condition.op === 'LT') return testValue != null
-        if (condition.op === 'GT') return false
-        if (condition.op === 'LTE') return true
-        if (condition.op === 'GTE') return testValue == null
-    } else if (condition.value == null) {
+    if (condition.value == null) {
         if (condition.op === 'LT') return false
         if (condition.op === 'GT') return testValue != null
         if (condition.op === 'LTE') return testValue == null
