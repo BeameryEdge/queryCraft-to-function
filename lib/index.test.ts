@@ -1,8 +1,8 @@
 import "mocha"
 import { assert } from "chai"
-import apply from '.'
-import {FilterBuilder, all, any, eq, find, gt, gte, lt, lte, neq, nfind, prefix, where} from 'querycraft'
-import { times, pluck } from 'ramda'
+import apply, { ArraySource, Bucket } from '.'
+import {FilterBuilder, all, any, eq, find, gt, gte, lt, lte, neq, nfind, prefix, where, BucketsAggregation} from 'querycraft'
+import { times, pluck, clone, propEq } from 'ramda'
 import * as moment from 'moment'
 
 interface TestObject {
@@ -47,8 +47,8 @@ function genTest(i: number): TestObject {
     }
 }
 
-
-const testObjects: TestObject[] = times(genTest, 100)
+const COUNT = 100
+const testObjects: TestObject[] = times(genTest, COUNT)
     .sort((a:TestObject,b:TestObject)=> a.id<b.id?1:a.id===b.id?0:-1)
 
 interface ConditionCase {
@@ -447,4 +447,191 @@ describe('toFunction', function(){
             }
         })
     }
+})
+
+describe('ArraySource', function(){
+    describe('BucketsAggregation', function () {
+        it('should support building buckets', function(){
+            const buckets = new ArraySource(testObjects)
+            .pipe(new BucketsAggregation({
+                fieldId: 'text'
+            }))
+            .sink()
+
+            const expected: Bucket[] = [
+                { id: undefined, value: 0, buckets: [] },
+                { id: 'foo', value: 0, buckets: [] },
+                { id: 'bar', value: 0, buckets: [] },
+                { id: 'lar', value: 0, buckets: [] },
+                { id: 'lark', value: 0, buckets: [] },
+                { id: 'snark', value: 0, buckets: [] },
+                { id: 'bark', value: 0, buckets: [] },
+            ]
+
+            for (let i = 100; i--;) {
+                expected[i % 7].value++
+            }
+            assert.sameDeepMembers(buckets, expected)
+        })
+        it('should support building buckets only outputting the given values', function(){
+            const buckets = new ArraySource(testObjects)
+            .pipe(new BucketsAggregation({
+                fieldId: 'text',
+                values: ['foo', 'bar'],
+            }))
+            .sink()
+
+            const expected: Bucket[] = [
+                { id: 'foo', value: 0, buckets: [] },
+                { id: 'bar', value: 0, buckets: [] },
+            ]
+
+            for (let i = 100; i--;) {
+                if (i % 7 === 1 || i % 7 === 2) {
+                    expected[i % 7 - 1].value++
+                }
+            }
+            assert.sameDeepMembers(buckets, expected)
+        })
+        it('should support building buckets on nested properties', function(){
+            const buckets = new ArraySource(testObjects)
+            .pipe(new BucketsAggregation({
+                fieldId: 'things',
+                subFieldIds: ['1', '2'],
+                subFieldProp: 'value'
+            }))
+            .sink()
+
+            const expected: Bucket[] = [
+                { id: 0, value: 101, buckets: [] }
+            ]
+
+            for (let i = 1; i < 100;i++) {
+                expected.push({ id: i, value: 1, buckets: [] })
+            }
+            assert.sameDeepMembers(buckets, expected)
+        })
+        it('should support building buckets on dotted properties', function(){
+            const buckets = new ArraySource(testObjects)
+            .pipe(new BucketsAggregation({
+                fieldId: 'obj.text'
+            }))
+            .sink()
+
+            const expected: Bucket[] = [
+                { id: undefined, value: 0, buckets: [] },
+                { id: 'foo', value: 0, buckets: [] },
+                { id: 'bar', value: 0, buckets: [] },
+                { id: 'lar', value: 0, buckets: [] },
+                { id: 'lark', value: 0, buckets: [] },
+                { id: 'snark', value: 0, buckets: [] },
+                { id: 'bark', value: 0, buckets: [] },
+            ]
+
+            for (let i = 100; i--;) {
+                if (1 === i % 11) {
+                    expected[((i-1)/11) % 7].value++
+                } else {
+                    expected[0].value++
+                }
+            }
+            for (let testBucket of expected) {
+                const bucket = buckets.find(propEq('id', testBucket.id))
+                assert.equal(bucket.value, testBucket.value, 'value should match for bucket ' + testBucket.id)
+            }
+        })
+        it('should support building bucket from numeric intervals', function(){
+            const buckets = new ArraySource(testObjects)
+            .pipe(new BucketsAggregation({
+                fieldId: 'num',
+                interval: 2
+            }))
+            .sink()
+
+            assert.sameDeepMembers(buckets, [
+                { id: 0, value: COUNT/5, buckets: [] },
+                { id: 2, value: 2*COUNT/5, buckets: [] },
+                { id: 4, value: COUNT/5, buckets: [] },
+                { id: undefined, value: COUNT/5, buckets: [] }
+            ])
+        })
+
+        it('should support building buckets with sub-buckets', function(){
+            const buckets: Bucket[] = new ArraySource(testObjects)
+            .pipe(new BucketsAggregation({
+                fieldId: 'text',
+                subBuckets: {
+                    fieldId: 'num',
+                    interval: 2
+                }
+            }))
+            .sink()
+
+            const subBuckets: Bucket[] = [
+                { buckets: [], id: undefined, value: 0 },
+                { buckets: [], id: 0, value: 0 },
+                { buckets: [], id: 2, value: 0 },
+                { buckets: [], id: 4, value: 0 }
+            ]
+
+            const expected: Bucket[] = [
+                { id: undefined, value: 0, buckets: clone(subBuckets) },
+                { id: 'foo', value: 0, buckets: clone(subBuckets) },
+                { id: 'bar', value: 0, buckets: clone(subBuckets) },
+                { id: 'lar', value: 0, buckets: clone(subBuckets) },
+                { id: 'snark', value: 0, buckets: clone(subBuckets) },
+                { id: 'lark', value: 0, buckets: clone(subBuckets) },
+                { id: 'bark', value: 0, buckets: clone(subBuckets) },
+            ]
+
+            for (let i = 100; i--;) {
+                expected[i % 7].value++
+                const num = i % 5
+                const intervalVal = num - (num % 2)
+                const idx = intervalVal/2 + 1
+                if (num === 0) {
+                    expected[i % 7].buckets[0].value++
+                } else {
+                    expected[i % 7].buckets[idx].value++
+                }
+            }
+
+            for (let testBucket of expected) {
+                const bucket = buckets.find(propEq('id', testBucket.id))
+
+                assert.equal(bucket.value, testBucket.value, 'value should match for bucket ' + testBucket.id)
+                for (let testSubBucket of testBucket.buckets) {
+                    const subBucket = bucket.buckets.find($ => $.id === testSubBucket.id)
+                    assert.equal(subBucket.value, testSubBucket.value,
+                        'value should match for bucket ' + testBucket.id
+                        + ', subBucket ' + testSubBucket.id)
+                }
+            }
+        })
+
+        it('should support building buckets from date-intervals', function(){
+            const buckets = new ArraySource(testObjects)
+            .pipe(new BucketsAggregation({
+                fieldId: 'date',
+                dateInterval: 'day'
+            }))
+            .sink()
+
+            const dateCount = Math.ceil(COUNT/23)
+
+            const expected: Bucket[] = [
+                { id: undefined, value: COUNT - dateCount, buckets: [] }
+            ]
+
+            for (let i = dateCount; i--;) {
+                expected.push({
+                    id: moment(now).subtract(i, 'days').startOf('day').valueOf(),
+                    value: 1,
+                    buckets: []
+                })
+            }
+
+            assert.sameDeepMembers(buckets, expected)
+        })
+    })
 })
