@@ -1,6 +1,7 @@
-import { FilterBuilder, QueryBuilder, Condition, Datum, OrderCondition, Value } from 'querycraft'
+import { FilterBuilder, QueryBuilder, Condition, Datum, OrderCondition, Value, Statement, AbstractAggregationSource, Aggregation, AbstractAggregation, FilterAggregation, BucketsAggregation } from 'querycraft'
 import { map, isEmpty, complement, contains, tap, chain, any, all, anyPass, allPass, split, sort, identity, path, propEq } from 'ramda'
 import * as moment from 'moment'
+import { isArray } from 'util';
 /**
  * Get the expanded set of values at an index for an object.
  * i.e. flatMap across arrays so an AND condition on <listProp>.<prop>
@@ -114,6 +115,10 @@ function conditionToFunction(condition: Condition): (values: any) => boolean {
     }
 }
 
+function parseStatements(statements: Statement[]){
+    return allPass(map(anyPass, map(map(queryToFunction), statements)))
+}
+
 /**
  * Apply a filter::Filter<T> object to an Array of objects input::T[]
  *
@@ -156,10 +161,122 @@ export default function apply<T extends { id: string }>(filter: FilterBuilder, i
         () => 0
 
     // for ALL alternatives sets we assert that ANY query must pass
-    const filterFn = allPass(map(anyPass, map(map(queryToFunction), filter.getStatements())))
+    const filterFn = parseStatements(filter.getStatements())
 
     return input
     .filter(filterFn)
     .sort(sortFn)
     .slice(0, filter.getLimit())
+}
+export interface Bucket {
+    id: string | number | null
+    value: number
+    buckets: Bucket[]
+}
+export interface BucketsObject {
+    [s: string]: {
+        id: string | number | null
+        value: number
+        buckets: BucketsObject
+    }
+}
+function bucketsReducer(bucketOptions: BucketsAggregation) {
+    if (!bucketOptions) return function (bucketsObj: BucketsObject, item: any): BucketsObject {
+        return {}
+    }
+    const subBucketsReducer = bucketsReducer(bucketOptions.subBuckets)
+    let getId: (item: any) => string | number | null
+    let fieldId = bucketOptions.fieldId
+    if (bucketOptions.interval !== undefined) {
+        getId = item => {
+            let num = path(fieldId.split('.'), item)
+            if (typeof num === 'number') {
+                return  num - (num % bucketOptions.interval)
+            }
+        }
+    } else if (bucketOptions.dateInterval !== undefined) {
+        getId = item => {
+            const field = path(fieldId.split('.'), item)
+            let date = moment(field)
+            if (field && date.isValid()) {
+                return date.startOf(bucketOptions.dateInterval).valueOf();
+            }
+        }
+    } else {
+        getId = item => path(fieldId.split('.'), item)
+    }
+    const reducer = function (bucketsObj: BucketsObject, item: any): BucketsObject {
+        const id = getId(item)
+        if (bucketOptions.values !== undefined && !contains(id, bucketOptions.values)) {
+            return bucketsObj
+        }
+        const bucket = bucketsObj[id]
+        if (!bucket) {
+            bucketsObj[id] = {
+                id: id,
+                value: 1,
+                buckets: subBucketsReducer({}, item)
+            }
+        } else {
+            bucketsObj[id].value++
+            bucketsObj[id].buckets =
+                subBucketsReducer(bucketsObj[id].buckets, item)
+        }
+        return bucketsObj
+    }
+
+    if (bucketOptions.subFieldIds !== undefined) {
+        fieldId = bucketOptions.subFieldProp
+        return function (bucketsObj: BucketsObject, item: any): BucketsObject {
+            const items: any[] = path(bucketOptions.fieldId.split('.'), item)
+            if (isArray(items)) {
+                return items
+                .filter(({ id }) => contains(id, bucketOptions.subFieldIds))
+                .reduce(reducer, bucketsObj)
+            } else {
+                return bucketsObj
+            }
+        }
+    } else {
+        return reducer
+    }
+}
+
+function getBucketsFromBucketObject(bucketsObj: BucketsObject): Bucket[] {
+    return Object.keys(bucketsObj).map(id => ({
+        id: bucketsObj[id].id,
+        value: bucketsObj[id].value,
+        buckets: getBucketsFromBucketObject(bucketsObj[id].buckets)
+    }))
+}
+
+function operationReducer(
+    result: any[],
+    aggregation: Aggregation
+): any[] {
+    switch (aggregation.type) {
+        case 'filter':
+            return result.filter(
+                parseStatements(
+                    (aggregation as FilterAggregation).getStatements()
+                )
+            )
+        case 'buckets':
+            return getBucketsFromBucketObject(
+                result.reduce(
+                    bucketsReducer(aggregation as BucketsAggregation), {}
+                )
+            )
+        default:
+            return result
+    }
+}
+
+export class ArraySource<T> extends AbstractAggregationSource {
+    constructor(private array: T[]){
+        super()
+    }
+    sink(aggregations: Aggregation[]){
+        return aggregations.reduceRight(operationReducer, this.array)
+    }
 }
