@@ -1,7 +1,7 @@
 import "mocha"
 import { assert } from "chai"
 import apply, { ArraySource, Bucket } from '.'
-import {FilterBuilder, all, any, eq, find, gt, gte, lt, lte, neq, nfind, prefix, where, BucketsAggregation} from 'querycraft'
+import {FilterBuilder, all, any, eq, find, gt, gte, lt, lte, neq, nfind, prefix, where, BucketsAggregation, FilterAggregation} from 'querycraft'
 import { times, pluck, clone, propEq } from 'ramda'
 import * as moment from 'moment'
 
@@ -331,7 +331,7 @@ const conditionCases: ConditionCase[] = [
     }
 ]
 
-function getIds(list: TestObject[]){
+function getIds(list: { id: string }[]){
     return list.map(item => item.id)
 }
 
@@ -632,6 +632,23 @@ describe('ArraySource', function(){
             }
 
             assert.sameDeepMembers(buckets, expected)
+        })
+    })
+    describe('FilterAggregation', function () {
+        it('should run the filter', function () {
+            const buckets = new ArraySource(testObjects)
+                .pipe(new FilterAggregation())
+                    .where ('num', eq(1))
+                    .where ('bool', eq(true))
+                .pipe(new BucketsAggregation({
+                    fieldId: 'id'
+                }))
+                .sink([])
+
+            const expected = testObjects.filter(({_id}) =>
+                _id%5===1 && _id%3===1)
+
+            assert.sameMembers(getIds(buckets as any[]), getIds(expected))
         })
     })
 })

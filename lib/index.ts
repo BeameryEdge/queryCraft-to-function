@@ -276,7 +276,7 @@ export class ArraySource<T> extends AbstractAggregationSource {
     constructor(private array: T[]){
         super()
     }
-    sink(aggregations: Aggregation[]){
-        return aggregations.reduceRight(operationReducer, this.array)
+    sink(aggregations: Aggregation[]): any[] {
+        return aggregations.reduce(operationReducer, this.array)
     }
 }

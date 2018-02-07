@@ -13,6 +13,7 @@ Converts a [QueryCraft](https://github.com/BeameryHQ/QueryCraft) Filter Builder 
 ## Installation
 
 ```sh
+npm install --save 'querycraft'
 npm install --save 'querycraft-to-function'
 ```
 
@@ -47,14 +48,14 @@ If we want a query the describes the logic:-
 We can build build it as easily as:-
 
 ```ts
-import { FilterBuilder, eq, lt, neq, any, find, where } from 'querycraft'
-import apply from 'querycraft-to-function'
+import { FilterBuilder, eq, lt, neq, any, find, where, BucketsAggregation,  } from 'querycraft'
+import { apply, ArraySource } from 'querycraft-to-function'
 
 const contacts: contact[] =  [ ... ]
 
 const filter = new FilterBuilder()
 .where('firstName', eq('bob'))
-.where('list', find(where('id', eq('ite,1'))))
+.where('list', find(where('id', eq('item1'))))
 .where('lastName', any([
     eq('doyle'),
     eq(null)
@@ -68,4 +69,22 @@ const filter = new FilterBuilder()
 console.log(apply(filter, contacts))
 // -> filtered list of contacts
 
+```
+
+If we would instead for example want to get contacts named bob
+grouped by the day they were created :-
+
+```ts
+import { FilterAggregation, eq, BucketsAggregation,  } from 'querycraft'
+import { apply, ArraySource } from 'querycraft-to-function'
+
+const buckets = new ArraySource(testObjects)
+    .pipe(new FilterAggregation())
+        .where('firstName', eq('bob'))
+    .pipe(new BucketsAggregation({
+        fieldId: 'createdAt',
+        dateInterval: 'day'
+    }))
+    .sink()
+// -> grouped counts of contacts
 ```
