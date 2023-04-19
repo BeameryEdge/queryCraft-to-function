@@ -32,7 +32,7 @@
     "@types/mocha": "^2.2.44",
     "@types/ramda": "^0.25.6",
     "chai": "^4.1.2",
-    "http-server": "^0.10.0",
+    "http-server": "^14.1.1",
     "install": "^0.10.1",
     "mocha": "^4.0.1",
     "mocha-junit-reporter": "^1.15.0",
